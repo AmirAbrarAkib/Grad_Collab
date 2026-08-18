@@ -1,9 +1,5 @@
 <?php
-// ============================================================
-// edit_profile.php - Edit Student Research Profile (Feature 2)
-// Allows the logged-in student to update their academic and
-// research preference information
-// ============================================================
+
 
 session_start();
 

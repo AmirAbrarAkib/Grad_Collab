@@ -1,9 +1,5 @@
 <?php
-// ============================================================
-// db.php - Database Connection File
-// This file creates a PDO connection to the MySQL database.
-// Include this file in any PHP page that needs the database.
-// ============================================================
+
 
 // Database settings - change these if your XAMPP setup is different
 $host     = "localhost";   // MySQL server (XAMPP uses localhost)

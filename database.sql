@@ -1,11 +1,4 @@
--- ============================================================
--- Grad Collab - Database Setup
--- ============================================================
--- HOW TO USE:
--- 1. Open phpMyAdmin (http://localhost/phpmyadmin)
--- 2. Click the "Import" tab
--- 3. Choose this file and click "Go"
--- ============================================================
+
 
 -- Create the database if it doesn't already exist
 CREATE DATABASE IF NOT EXISTS grad_collab;

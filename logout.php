@@ -1,8 +1,4 @@
 <?php
-// ============================================================
-// logout.php - Logout Handler
-// Destroys the user session and redirects to the login page
-// ============================================================
 
 // Start the session so we can access and destroy it
 session_start();

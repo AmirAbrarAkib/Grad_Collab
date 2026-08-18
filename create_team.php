@@ -1,9 +1,4 @@
 <?php
-// ============================================================
-// create_team.php - Create a Research/Thesis Team Post (Feature 3)
-// The logged-in student fills in research information and becomes
-// the team leader of the new post
-// ============================================================
 
 session_start();
 

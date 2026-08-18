@@ -1,9 +1,4 @@
 <?php
-// ============================================================
-// signup.php - User Registration Page
-// Allows new users to create an account as Student or Supervisor
-// Admin accounts are NOT available through this form
-// ============================================================
 
 // Start the session so we can check if user is already logged in
 session_start();

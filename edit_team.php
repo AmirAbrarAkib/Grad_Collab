@@ -1,9 +1,5 @@
 <?php
-// ============================================================
-// edit_team.php - Edit an Existing Research Post (Feature 3)
-// Only the team leader (the student who created the post)
-// can edit their own open posts
-// ============================================================
+
 
 session_start();
 

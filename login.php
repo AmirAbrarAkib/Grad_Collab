@@ -1,10 +1,5 @@
 <?php
-// ============================================================
-// login.php - User Login Page
-// Checks email and password, then redirects based on role
-// ============================================================
 
-// Start the session - required before using $_SESSION
 session_start();
 
 // If the user is already logged in, redirect to their dashboard

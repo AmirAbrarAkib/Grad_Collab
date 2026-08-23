@@ -39,12 +39,6 @@ if (!$post) {
     exit();
 }
 
-// Only open posts can be edited
-if ($post['status'] !== 'open') {
-    header("Location: view_team.php?id=" . $team_id);
-    exit();
-}
-
 $error   = "";
 $success = "";
 
@@ -56,11 +50,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $domain              = trim($_POST['domain']);
     $tags                = trim($_POST['tags']);
     $required_teammates  = trim($_POST['required_teammates']);
+    $remaining_seats     = trim($_POST['remaining_seats'] ?? $required_teammates);
     $deadline            = trim($_POST['deadline']);
     $minimum_cgpa        = trim($_POST['minimum_cgpa']);
     $eligible_semesters  = trim($_POST['eligible_semesters']);
     $required_skills     = trim($_POST['required_skills']);
     $preferred_supervisor = trim($_POST['preferred_supervisor']);
+    $status              = trim($_POST['status'] ?? 'open');
 
     // ---- VALIDATION ----
     if (empty($title)) {
@@ -75,11 +71,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($required_teammates === '' || !ctype_digit($required_teammates) || (int)$required_teammates < 1) {
         $error = "Please enter a valid number of required teammates (minimum 1).";
 
+    } elseif ($remaining_seats === '' || !ctype_digit($remaining_seats) || (int)$remaining_seats < 0 || (int)$remaining_seats > (int)$required_teammates) {
+        $error = "Please enter a valid number of remaining seats between 0 and the required teammates count.";
+
     } elseif ($minimum_cgpa === '' || !is_numeric($minimum_cgpa) || $minimum_cgpa < 0 || $minimum_cgpa > 4.00) {
         $error = "Please enter a valid minimum CGPA between 0.00 and 4.00.";
 
     } elseif (empty($deadline)) {
         $error = "Please select a deadline for the post.";
+
+    } elseif (!in_array($status, ['open', 'closed'])) {
+        $error = "Please select a valid post status.";
 
     } else {
 
@@ -93,11 +95,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                  domain              = :domain,
                  tags                = :tags,
                  required_teammates  = :required_teammates,
+                 remaining_seats     = :remaining_seats,
                  deadline            = :deadline,
                  minimum_cgpa        = :minimum_cgpa,
                  eligible_semesters  = :eligible_semesters,
                  required_skills     = :required_skills,
-                 preferred_supervisor = :preferred_supervisor
+                 preferred_supervisor = :preferred_supervisor,
+                 status              = :status
              WHERE team_id = :tid AND leader_id = :uid"
         );
 
@@ -107,11 +111,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':domain'              => $domain,
             ':tags'                => $tags,
             ':required_teammates'  => (int)$required_teammates,
+            ':remaining_seats'     => (int)$remaining_seats,
             ':deadline'            => $deadline,
             ':minimum_cgpa'        => $minimum_cgpa,
             ':eligible_semesters'  => $eligible_semesters,
             ':required_skills'     => $required_skills,
             ':preferred_supervisor' => $preferred_supervisor,
+            ':status'              => $status,
             ':tid'                 => $team_id,
             ':uid'                 => $user_id
         ]);
@@ -122,18 +128,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // If there was a validation error, re-use what the user typed
-    // (we pre-fill from $_POST instead of $post in that case)
     $post = array_merge($post, [
         'title'               => $title,
         'abstract'            => $abstract,
         'domain'              => $domain,
         'tags'                => $tags,
         'required_teammates'  => $required_teammates,
+        'remaining_seats'     => $remaining_seats,
         'deadline'            => $deadline,
         'minimum_cgpa'        => $minimum_cgpa,
         'eligible_semesters'  => $eligible_semesters,
         'required_skills'     => $required_skills,
-        'preferred_supervisor' => $preferred_supervisor
+        'preferred_supervisor' => $preferred_supervisor,
+        'status'              => $status
     ]);
 }
 ?>
@@ -165,6 +172,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <a href="student_dashboard.php" class="sidebar-link" id="nav-dashboard">
                 <span class="sidebar-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span>
                 Dashboard
+            </a>
+            <a href="browse_teams.php" class="sidebar-link" id="nav-browse">
+                <span class="sidebar-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+                Browse Teams
             </a>
             <a href="profile.php" class="sidebar-link" id="nav-profile">
                 <span class="sidebar-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
@@ -240,13 +251,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <!-- SECTION: Team Requirements -->
             <div class="form-section">
-                <h3>Team Requirements</h3>
+                <h3>Team Requirements &amp; Capacity</h3>
 
                 <div class="form-group">
-                    <label for="required_teammates">Number of Teammates Needed <span class="required">*</span></label>
+                    <label for="required_teammates">Total Teammates Needed <span class="required">*</span></label>
                     <input type="number" id="required_teammates" name="required_teammates" class="form-control"
                            min="1" max="20"
                            value="<?php echo htmlspecialchars($post['required_teammates']); ?>">
+                    <span class="form-text">Total number of teammates needed for this research.</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="remaining_seats">Remaining Available Seats <span class="required">*</span></label>
+                    <input type="number" id="remaining_seats" name="remaining_seats" class="form-control"
+                           min="0" max="<?php echo htmlspecialchars($post['required_teammates']); ?>"
+                           value="<?php echo htmlspecialchars($post['remaining_seats'] ?? $post['required_teammates']); ?>">
+                    <span class="form-text">Visible open seats still available for new applicants.</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="status">Post Status <span class="required">*</span></label>
+                    <select id="status" name="status" class="form-control">
+                        <option value="open" <?php echo ($post['status'] === 'open') ? 'selected' : ''; ?>>Open (Accepting applicants)</option>
+                        <option value="closed" <?php echo ($post['status'] === 'closed') ? 'selected' : ''; ?>>Closed (No longer accepting applicants)</option>
+                    </select>
                 </div>
             </div>
 

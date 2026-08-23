@@ -21,28 +21,36 @@ require_once 'db.php';
 // Get the logged-in student's user_id from the session
 $user_id = $_SESSION['user_id'];
 
-// ---- HANDLE CLOSE POST ACTION ----
-// Student can close their own post from this page
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'close') {
+// ---- HANDLE CLOSE / REOPEN POST ACTION ----
+// Student can close or reopen their own post from this page
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
     $team_id = (int)$_POST['team_id'];
 
-    // IMPORTANT: We only close the post if it belongs to this student.
-    // We verify leader_id = session user_id in the WHERE clause.
-    $stmt = $pdo->prepare(
-        "UPDATE team_posts SET status = 'closed' WHERE team_id = :tid AND leader_id = :uid"
-    );
-    $stmt->execute([':tid' => $team_id, ':uid' => $user_id]);
+    if ($_POST['action'] === 'close') {
+        // We only close the post if it belongs to this student.
+        $stmt = $pdo->prepare(
+            "UPDATE team_posts SET status = 'closed' WHERE team_id = :tid AND leader_id = :uid"
+        );
+        $stmt->execute([':tid' => $team_id, ':uid' => $user_id]);
+        header("Location: my_teams.php?closed=1");
+        exit();
 
-    // Redirect to refresh the page and show the updated status
-    header("Location: my_teams.php?closed=1");
-    exit();
+    } elseif ($_POST['action'] === 'reopen') {
+        // Reopen post
+        $stmt = $pdo->prepare(
+            "UPDATE team_posts SET status = 'open' WHERE team_id = :tid AND leader_id = :uid"
+        );
+        $stmt->execute([':tid' => $team_id, ':uid' => $user_id]);
+        header("Location: my_teams.php?reopened=1");
+        exit();
+    }
 }
 
 // ---- FETCH THIS STUDENT'S POSTS ----
 // We filter by leader_id = the session user_id so students only see their own posts
 $stmt = $pdo->prepare(
-    "SELECT team_id, title, abstract, domain, required_teammates, minimum_cgpa,
+    "SELECT team_id, title, abstract, domain, required_teammates, remaining_seats, minimum_cgpa,
             eligible_semesters, deadline, preferred_supervisor, tags, status, created_at
      FROM team_posts
      WHERE leader_id = :uid
@@ -51,8 +59,9 @@ $stmt = $pdo->prepare(
 $stmt->execute([':uid' => $user_id]);
 $posts = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-$closed_msg = isset($_GET['closed']) ? "Post has been closed." : "";
-$edit_msg   = isset($_GET['updated']) ? "Post updated successfully." : "";
+$closed_msg   = isset($_GET['closed']) ? "Post has been closed." : "";
+$reopen_msg   = isset($_GET['reopened']) ? "Post has been reopened." : "";
+$edit_msg     = isset($_GET['updated']) ? "Post updated successfully." : "";
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -82,6 +91,10 @@ $edit_msg   = isset($_GET['updated']) ? "Post updated successfully." : "";
             <a href="student_dashboard.php" class="sidebar-link" id="nav-dashboard">
                 <span class="sidebar-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span>
                 Dashboard
+            </a>
+            <a href="browse_teams.php" class="sidebar-link" id="nav-browse">
+                <span class="sidebar-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+                Browse Teams
             </a>
             <a href="profile.php" class="sidebar-link" id="nav-profile">
                 <span class="sidebar-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
@@ -123,6 +136,9 @@ $edit_msg   = isset($_GET['updated']) ? "Post updated successfully." : "";
         <?php if ($closed_msg): ?>
             <div class="alert alert-success"><?php echo htmlspecialchars($closed_msg); ?></div>
         <?php endif; ?>
+        <?php if ($reopen_msg): ?>
+            <div class="alert alert-success"><?php echo htmlspecialchars($reopen_msg); ?></div>
+        <?php endif; ?>
         <?php if ($edit_msg): ?>
             <div class="alert alert-success"><?php echo htmlspecialchars($edit_msg); ?></div>
         <?php endif; ?>
@@ -153,7 +169,6 @@ $edit_msg   = isset($_GET['updated']) ? "Post updated successfully." : "";
                 
                 <p class="post-card-abstract">
                     <?php 
-                    // Show a snippet of the abstract
                     $abstract = htmlspecialchars($post['abstract']);
                     if (strlen($abstract) > 150) {
                         echo substr($abstract, 0, 150) . '...';
@@ -180,21 +195,28 @@ $edit_msg   = isset($_GET['updated']) ? "Post updated successfully." : "";
 
                 <div class="post-card-meta">
                     <span><strong>Teammates needed:</strong> <?php echo (int)$post['required_teammates']; ?></span>
+                    <span><strong>Remaining seats:</strong> <?php echo (int)($post['remaining_seats'] ?? $post['required_teammates']); ?></span>
                     <span><strong>Min CGPA:</strong> <?php echo htmlspecialchars($post['minimum_cgpa']); ?></span>
                     <span><strong>Deadline:</strong> <?php echo date('d M Y', strtotime($post['deadline'])); ?></span>
                 </div>
 
                 <div class="post-card-actions">
                     <a href="view_team.php?id=<?php echo (int)$post['team_id']; ?>" class="btn btn-secondary btn-sm">View Details</a>
+                    <a href="edit_team.php?id=<?php echo (int)$post['team_id']; ?>" class="btn btn-secondary btn-sm">Edit</a>
 
                     <?php if ($post['status'] === 'open'): ?>
-                        <a href="edit_team.php?id=<?php echo (int)$post['team_id']; ?>" class="btn btn-secondary btn-sm">Edit</a>
-                        
                         <!-- Close the post using a small inline form -->
                         <form method="POST" action="my_teams.php" class="inline-form" onsubmit="return confirm('Close this post? It will no longer appear as open.');">
                             <input type="hidden" name="action" value="close">
                             <input type="hidden" name="team_id" value="<?php echo (int)$post['team_id']; ?>">
                             <button type="submit" class="btn btn-danger btn-sm">Close Post</button>
+                        </form>
+                    <?php else: ?>
+                        <!-- Reopen the post -->
+                        <form method="POST" action="my_teams.php" class="inline-form" onsubmit="return confirm('Reopen this post? It will accept applicants again.');">
+                            <input type="hidden" name="action" value="reopen">
+                            <input type="hidden" name="team_id" value="<?php echo (int)$post['team_id']; ?>">
+                            <button type="submit" class="btn btn-primary btn-sm">Reopen Post</button>
                         </form>
                     <?php endif; ?>
                 </div>

@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS team_posts (
     domain               VARCHAR(150) NOT NULL,                     -- e.g. "Database"
     tags                 VARCHAR(255) DEFAULT NULL,                 -- Comma-separated tags
     required_teammates   INT NOT NULL DEFAULT 1,                   -- How many teammates needed
+    remaining_seats      INT NOT NULL DEFAULT 1,                   -- Visible open seats remaining
     deadline             DATE NOT NULL,                             -- Application deadline
     minimum_cgpa         DECIMAL(3,2) NOT NULL DEFAULT 0.00,
     eligible_semesters   VARCHAR(100) DEFAULT NULL,                 -- e.g. "10, 11, 12"
@@ -78,6 +79,25 @@ CREATE TABLE IF NOT EXISTS team_posts (
     preferred_supervisor VARCHAR(150) DEFAULT NULL,
     status               ENUM('open','closed') NOT NULL DEFAULT 'open',
     created_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_team_domain (domain),
+    INDEX idx_team_status (status),
+    INDEX idx_team_deadline (deadline),
+    INDEX idx_team_min_cgpa (minimum_cgpa),
     FOREIGN KEY (leader_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
+
+-- ============================================================
+-- Feature 4: Shortlisted / Saved Research Posts
+-- Allows students to bookmark/shortlist thesis opportunities.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS saved_posts (
+    save_id    INT PRIMARY KEY AUTO_INCREMENT,
+    user_id    INT NOT NULL,                              -- References users.user_id (student)
+    team_id    INT NOT NULL,                              -- References team_posts.team_id
+    saved_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_user_team (user_id, team_id),       -- Prevents duplicate bookmarks
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (team_id) REFERENCES team_posts(team_id) ON DELETE CASCADE
+);
+
 

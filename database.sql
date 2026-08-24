@@ -81,3 +81,21 @@ CREATE TABLE IF NOT EXISTS team_posts (
     FOREIGN KEY (leader_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 
+-- ============================================================
+-- Feature 4: Join Requests / Team Applications
+-- A student applies to join an open team post.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS team_applications (
+    application_id       INT PRIMARY KEY AUTO_INCREMENT,
+    team_id              INT NOT NULL,                              -- References team_posts.team_id
+    student_id           INT NOT NULL,                              -- References users.user_id (the applicant)
+    message              TEXT NOT NULL,                             -- Statement of interest
+    match_score          INT NOT NULL DEFAULT 0,                    -- Match score at time of application (0-100)
+    status               ENUM('pending','accepted','rejected') NOT NULL DEFAULT 'pending',
+    applied_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (team_id) REFERENCES team_posts(team_id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+

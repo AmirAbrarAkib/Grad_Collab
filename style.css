@@ -1341,3 +1341,333 @@ select.form-control {
 
 /* page-container submit button override */
 .page-container button[type=submit] { width: auto; }
+
+/* ============================================================
+   Match Score Component Styles
+   ============================================================ */
+.match-score-card {
+    background-color: var(--surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-card);
+    padding: 20px 24px;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition);
+}
+.match-score-card.match-high {
+    border-left: 5px solid var(--accent-green);
+    background: linear-gradient(to right, #F0FDF4, var(--surface) 25%);
+}
+.match-score-card.match-med {
+    border-left: 5px solid var(--accent-amber);
+    background: linear-gradient(to right, #FFFBEB, var(--surface) 25%);
+}
+.match-score-card.match-low {
+    border-left: 5px solid var(--danger);
+    background: linear-gradient(to right, #FEF2F2, var(--surface) 25%);
+}
+
+.match-score-header {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+}
+
+.match-score-circle {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    box-shadow: 0 4px 12px rgba(107, 70, 193, 0.25);
+    flex-shrink: 0;
+}
+
+.match-high .match-score-circle {
+    background: linear-gradient(135deg, #059669, #10B981);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+.match-med .match-score-circle {
+    background: linear-gradient(135deg, #D97706, #F59E0B);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+.match-low .match-score-circle {
+    background: linear-gradient(135deg, #DC2626, #EF4444);
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
+}
+
+.match-score-number {
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.match-score-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.9;
+    margin-top: 2px;
+}
+
+.match-score-info {
+    flex: 1;
+    min-width: 240px;
+}
+
+.match-breakdown-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+}
+
+.breakdown-item {
+    background: #F9FAFB;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    padding: 12px 14px;
+}
+
+.breakdown-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    font-size: 13px;
+}
+
+.breakdown-name {
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.breakdown-pts {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.breakdown-bar-bg {
+    height: 6px;
+    background-color: #E5E7EB;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+.breakdown-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), var(--primary-light));
+    border-radius: 3px;
+    transition: width 0.4s ease;
+}
+
+.match-high .breakdown-bar-fill {
+    background: linear-gradient(90deg, #059669, #10B981);
+}
+.match-med .breakdown-bar-fill {
+    background: linear-gradient(90deg, #D97706, #F59E0B);
+}
+.match-low .breakdown-bar-fill {
+    background: linear-gradient(90deg, #DC2626, #EF4444);
+}
+
+.breakdown-status {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* Match Badge Pill (used on browse cards) */
+.match-badge-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.badge-match-high, .match-badge-pill.badge-match-high {
+    background-color: #ECFDF5;
+    color: #059669;
+    border: 1px solid #A7F3D0;
+}
+
+.badge-match-med, .match-badge-pill.badge-match-med {
+    background-color: #FFFBEB;
+    color: #D97706;
+    border: 1px solid #FDE68A;
+}
+
+.badge-match-low, .match-badge-pill.badge-match-low {
+    background-color: #FEF2F2;
+    color: #DC2626;
+    border: 1px solid #FECACA;
+}
+
+.match-score-val {
+    font-weight: 700;
+}
+
+.match-score-txt {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.85;
+}
+
+/* ============================================================
+   Application & Join Request Styles
+   ============================================================ */
+.app-status-box {
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 16px;
+}
+
+.app-status-pending {
+    background-color: #FFFBEB;
+    border: 1px solid #FDE68A;
+}
+
+.app-status-accepted {
+    background-color: #ECFDF5;
+    border: 1px solid #A7F3D0;
+}
+
+.app-status-rejected {
+    background-color: #FEF2F2;
+    border: 1px solid #FECACA;
+}
+
+.badge-pending {
+    background-color: #FFFBEB;
+    color: #D97706;
+    border: 1px solid #FDE68A;
+}
+
+.badge-accepted {
+    background-color: #ECFDF5;
+    color: #059669;
+    border: 1px solid #A7F3D0;
+}
+
+.badge-rejected {
+    background-color: #FEF2F2;
+    color: #DC2626;
+    border: 1px solid #FECACA;
+}
+
+/* Applicants List for Team Leaders */
+.applicants-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.applicant-card {
+    background: #FFFFFF;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 18px 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    transition: var(--transition);
+}
+
+.applicant-card:hover {
+    border-color: #D1D5DB;
+    box-shadow: var(--shadow-sm);
+}
+
+.applicant-card-accepted {
+    border-left: 4px solid var(--accent-green);
+}
+
+.applicant-card-rejected {
+    border-left: 4px solid var(--danger);
+    opacity: 0.85;
+}
+
+.applicant-card-pending {
+    border-left: 4px solid var(--accent-amber);
+}
+
+.applicant-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.applicant-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-main);
+    margin: 0;
+}
+
+.applicant-email {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.applicant-match-badge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 14px;
+    border-radius: 8px;
+    text-align: center;
+    min-width: 80px;
+}
+
+.applicant-stats-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 10px;
+    font-size: 13px;
+    color: var(--text-main);
+}
+
+.applicant-message-box {
+    background: #F9FAFB;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+}
+
+.applicant-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-light);
+}
+
+.btn-success {
+    background-color: var(--accent-green);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: var(--radius-btn);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+}
+.btn-success:hover {
+    background-color: #059669;
+    color: white;
+}
+

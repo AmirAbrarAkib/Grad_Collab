@@ -1,6 +1,6 @@
 <?php
 // ============================================================
-// my_teams.php - My Research Posts (Feature 3)
+// my_teams.php - My Research Posts (Feature 3 & 4)
 // Shows all research/thesis posts created by the logged-in student
 // ============================================================
 
@@ -17,30 +17,29 @@ if ($_SESSION['role'] !== 'student') {
 }
 
 require_once 'db.php';
+require_once 'match_helper.php';
+
+ensure_applications_table($pdo);
 
 // Get the logged-in student's user_id from the session
-$user_id = $_SESSION['user_id'];
+$user_id = (int)$_SESSION['user_id'];
 
 // ---- HANDLE CLOSE POST ACTION ----
-// Student can close their own post from this page
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'close') {
 
     $team_id = (int)$_POST['team_id'];
 
-    // IMPORTANT: We only close the post if it belongs to this student.
-    // We verify leader_id = session user_id in the WHERE clause.
+    // Verify leader_id = session user_id in the WHERE clause
     $stmt = $pdo->prepare(
         "UPDATE team_posts SET status = 'closed' WHERE team_id = :tid AND leader_id = :uid"
     );
     $stmt->execute([':tid' => $team_id, ':uid' => $user_id]);
 
-    // Redirect to refresh the page and show the updated status
     header("Location: my_teams.php?closed=1");
     exit();
 }
 
 // ---- FETCH THIS STUDENT'S POSTS ----
-// We filter by leader_id = the session user_id so students only see their own posts
 $stmt = $pdo->prepare(
     "SELECT team_id, title, abstract, domain, required_teammates, minimum_cgpa,
             eligible_semesters, deadline, preferred_supervisor, tags, status, created_at
@@ -50,6 +49,23 @@ $stmt = $pdo->prepare(
 );
 $stmt->execute([':uid' => $user_id]);
 $posts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Fetch application counts for this student's posts
+$appCountStmt = $pdo->prepare("
+    SELECT ta.team_id,
+           SUM(CASE WHEN ta.status = 'pending' THEN 1 ELSE 0 END) AS pending_count,
+           SUM(CASE WHEN ta.status = 'accepted' THEN 1 ELSE 0 END) AS accepted_count,
+           COUNT(*) AS total_count
+    FROM team_applications ta
+    JOIN team_posts tp ON tp.team_id = ta.team_id
+    WHERE tp.leader_id = :uid
+    GROUP BY ta.team_id
+");
+$appCountStmt->execute([':uid' => $user_id]);
+$app_counts = [];
+foreach ($appCountStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+    $app_counts[$row['team_id']] = $row;
+}
 
 $closed_msg = isset($_GET['closed']) ? "Post has been closed." : "";
 $edit_msg   = isset($_GET['updated']) ? "Post updated successfully." : "";
@@ -83,6 +99,14 @@ $edit_msg   = isset($_GET['updated']) ? "Post updated successfully." : "";
                 <span class="sidebar-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span>
                 Dashboard
             </a>
+            <a href="browse_teams.php" class="sidebar-link" id="nav-explore">
+                <span class="sidebar-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+                Explore Teams
+            </a>
+            <a href="my_applications.php" class="sidebar-link" id="nav-applications">
+                <span class="sidebar-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span>
+                My Applications
+            </a>
             <a href="profile.php" class="sidebar-link" id="nav-profile">
                 <span class="sidebar-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
                 My Profile
@@ -113,9 +137,13 @@ $edit_msg   = isset($_GET['updated']) ? "Post updated successfully." : "";
                 <span class="topbar-username"><?php echo htmlspecialchars($_SESSION['name']); ?></span>
             </div>
         </header>
+
     <div class="page-container">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
-            <h2 class="page-title" style="margin:0;">My Research Posts</h2>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
+            <div>
+                <h2 class="page-title" style="margin:0;">My Research Posts</h2>
+                <p style="color:#6B7280; font-size:14px; margin-top:4px;">Manage your opportunities and review join requests from prospective teammates.</p>
+            </div>
             <a href="create_team.php" class="btn btn-primary">Create Post</a>
         </div>
 
@@ -139,27 +167,33 @@ $edit_msg   = isset($_GET['updated']) ? "Post updated successfully." : "";
         <?php else: ?>
 
             <!-- Post Cards -->
-            <?php foreach ($posts as $post): ?>
+            <?php foreach ($posts as $post): 
+                $tid = $post['team_id'];
+                $pending_count = (int)($app_counts[$tid]['pending_count'] ?? 0);
+                $accepted_count = (int)($app_counts[$tid]['accepted_count'] ?? 0);
+            ?>
             <div class="post-card">
                 <div class="post-card-header">
                     <div>
                         <div class="post-card-domain"><?php echo htmlspecialchars($post['domain']); ?></div>
                         <h3 class="post-card-title"><?php echo htmlspecialchars($post['title']); ?></h3>
                     </div>
-                    <span class="badge badge-<?php echo $post['status']; ?>">
-                        <?php echo ucfirst(htmlspecialchars($post['status'])); ?>
-                    </span>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <?php if ($pending_count > 0): ?>
+                            <span class="badge badge-pending" style="font-size:12px; font-weight:600;">
+                                <?php echo $pending_count; ?> Pending Request<?php echo $pending_count > 1 ? 's' : ''; ?>
+                            </span>
+                        <?php endif; ?>
+                        <span class="badge badge-<?php echo $post['status']; ?>">
+                            <?php echo ucfirst(htmlspecialchars($post['status'])); ?>
+                        </span>
+                    </div>
                 </div>
                 
                 <p class="post-card-abstract">
                     <?php 
-                    // Show a snippet of the abstract
                     $abstract = htmlspecialchars($post['abstract']);
-                    if (strlen($abstract) > 150) {
-                        echo substr($abstract, 0, 150) . '...';
-                    } else {
-                        echo $abstract;
-                    }
+                    echo (strlen($abstract) > 150) ? substr($abstract, 0, 150) . '...' : $abstract;
                     ?>
                 </p>
 
@@ -179,19 +213,21 @@ $edit_msg   = isset($_GET['updated']) ? "Post updated successfully." : "";
                 <?php endif; ?>
 
                 <div class="post-card-meta">
-                    <span><strong>Teammates needed:</strong> <?php echo (int)$post['required_teammates']; ?></span>
-                    <span><strong>Min CGPA:</strong> <?php echo htmlspecialchars($post['minimum_cgpa']); ?></span>
+                    <span><strong>Teammates:</strong> <?php echo $accepted_count; ?> / <?php echo (int)$post['required_teammates']; ?> accepted</span>
+                    <span><strong>Min CGPA:</strong> <?php echo number_format((float)$post['minimum_cgpa'], 2); ?></span>
                     <span><strong>Deadline:</strong> <?php echo date('d M Y', strtotime($post['deadline'])); ?></span>
                 </div>
 
                 <div class="post-card-actions">
-                    <a href="view_team.php?id=<?php echo (int)$post['team_id']; ?>" class="btn btn-secondary btn-sm">View Details</a>
+                    <a href="view_team.php?id=<?php echo (int)$post['team_id']; ?>" class="btn btn-primary btn-sm">
+                        View Details &amp; Applicants <?php if ($pending_count > 0): ?>(<?php echo $pending_count; ?>)<?php endif; ?>
+                    </a>
 
                     <?php if ($post['status'] === 'open'): ?>
                         <a href="edit_team.php?id=<?php echo (int)$post['team_id']; ?>" class="btn btn-secondary btn-sm">Edit</a>
                         
-                        <!-- Close the post using a small inline form -->
-                        <form method="POST" action="my_teams.php" class="inline-form" onsubmit="return confirm('Close this post? It will no longer appear as open.');">
+                        <!-- Close the post using an inline form -->
+                        <form method="POST" action="my_teams.php" class="inline-form" onsubmit="return confirm('Close this post? It will no longer accept new join requests.');">
                             <input type="hidden" name="action" value="close">
                             <input type="hidden" name="team_id" value="<?php echo (int)$post['team_id']; ?>">
                             <button type="submit" class="btn btn-danger btn-sm">Close Post</button>

@@ -15,8 +15,11 @@ if ($_SESSION['role'] !== 'student') {
 }
 
 require_once 'db.php';
+require_once 'match_helper.php';
 
-$user_id = $_SESSION['user_id'];
+ensure_applications_table($pdo);
+
+$user_id = (int)$_SESSION['user_id'];
 
 // Check if the student has filled in their profile yet
 $stmt = $pdo->prepare("SELECT profile_id FROM student_profiles WHERE user_id = :uid");
@@ -32,6 +35,21 @@ $post_count = $stmt2->fetch(PDO::FETCH_ASSOC)['total'];
 $stmt3 = $pdo->prepare("SELECT COUNT(*) AS total FROM team_posts WHERE leader_id = :uid AND status = 'open'");
 $stmt3->execute([':uid' => $user_id]);
 $active_count = $stmt3->fetch(PDO::FETCH_ASSOC)['total'];
+
+// Count pending join requests received on student's posts
+$stmt4 = $pdo->prepare("
+    SELECT COUNT(*) AS total 
+    FROM team_applications ta
+    JOIN team_posts tp ON tp.team_id = ta.team_id
+    WHERE tp.leader_id = :uid AND ta.status = 'pending'
+");
+$stmt4->execute([':uid' => $user_id]);
+$pending_requests = $stmt4->fetch(PDO::FETCH_ASSOC)['total'];
+
+// Count applications submitted by this student
+$stmt5 = $pdo->prepare("SELECT COUNT(*) AS total FROM team_applications WHERE student_id = :uid");
+$stmt5->execute([':uid' => $user_id]);
+$my_apps_count = $stmt5->fetch(PDO::FETCH_ASSOC)['total'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -69,6 +87,27 @@ $active_count = $stmt3->fetch(PDO::FETCH_ASSOC)['total'];
                     </svg>
                 </span>
                 Dashboard
+            </a>
+
+            <a href="browse_teams.php" class="sidebar-link" id="nav-explore">
+                <span class="sidebar-link-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                </span>
+                Explore Teams
+            </a>
+
+            <a href="my_applications.php" class="sidebar-link" id="nav-applications">
+                <span class="sidebar-link-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                    </svg>
+                </span>
+                My Applications
             </a>
 
             <a href="profile.php" class="sidebar-link" id="nav-profile">
@@ -136,9 +175,6 @@ $active_count = $stmt3->fetch(PDO::FETCH_ASSOC)['total'];
                     <?php echo strtoupper(substr($_SESSION['name'], 0, 1)); ?>
                 </div>
                 <span class="topbar-username"><?php echo htmlspecialchars($_SESSION['name']); ?></span>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9"/>
-                </svg>
             </div>
         </header>
 
@@ -149,7 +185,7 @@ $active_count = $stmt3->fetch(PDO::FETCH_ASSOC)['total'];
             <div class="welcome-banner">
                 <div class="welcome-text">
                     <h1 class="welcome-title">Welcome back, <?php echo htmlspecialchars($_SESSION['name']); ?>! &#x1F44B;</h1>
-                    <p class="welcome-sub">Here's what's happening with your research journey.</p>
+                    <p class="welcome-sub">Explore research teams, check your match scores, and collaborate on projects.</p>
                 </div>
                 <div class="welcome-illustration" aria-hidden="true">
                     <svg width="130" height="100" viewBox="0 0 130 100" fill="none">
@@ -170,7 +206,7 @@ $active_count = $stmt3->fetch(PDO::FETCH_ASSOC)['total'];
             </div>
 
             <!-- Stats Row -->
-            <div class="stats-row">
+            <div class="stats-row" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
                 <div class="stat-card">
                     <div class="stat-card-icon stat-icon-primary">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -180,8 +216,21 @@ $active_count = $stmt3->fetch(PDO::FETCH_ASSOC)['total'];
                     </div>
                     <div class="stat-card-body">
                         <div class="stat-card-value"><?php echo (int)$post_count; ?></div>
-                        <div class="stat-card-label">Research Posts</div>
-                        <div class="stat-card-sub">Total posts you've created</div>
+                        <div class="stat-card-label">My Research Posts</div>
+                        <div class="stat-card-sub"><?php echo (int)$active_count; ?> currently active</div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-card-icon stat-icon-amber">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                    </div>
+                    <div class="stat-card-body">
+                        <div class="stat-card-value"><?php echo (int)$pending_requests; ?></div>
+                        <div class="stat-card-label">Join Requests Received</div>
+                        <div class="stat-card-sub">Pending review</div>
                     </div>
                 </div>
 
@@ -193,23 +242,9 @@ $active_count = $stmt3->fetch(PDO::FETCH_ASSOC)['total'];
                         </svg>
                     </div>
                     <div class="stat-card-body">
-                        <div class="stat-card-value"><?php echo (int)$active_count; ?></div>
-                        <div class="stat-card-label">Active Posts</div>
-                        <div class="stat-card-sub">Currently open posts</div>
-                    </div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-card-icon stat-icon-amber">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="10"/>
-                            <polyline points="12 6 12 12 16 14"/>
-                        </svg>
-                    </div>
-                    <div class="stat-card-body">
-                        <div class="stat-card-value"><?php echo max(0, (int)$post_count - (int)$active_count); ?></div>
-                        <div class="stat-card-label">Drafts</div>
-                        <div class="stat-card-sub">Saved as drafts</div>
+                        <div class="stat-card-value"><?php echo (int)$my_apps_count; ?></div>
+                        <div class="stat-card-label">Applications Submitted</div>
+                        <div class="stat-card-sub">Track application statuses</div>
                     </div>
                 </div>
             </div>
@@ -226,7 +261,7 @@ $active_count = $stmt3->fetch(PDO::FETCH_ASSOC)['total'];
                 </div>
                 <div class="profile-alert-body">
                     <strong>Your research profile is incomplete.</strong>
-                    <p>Complete your profile to help others find you and to get better match suggestions.</p>
+                    <p>Complete your profile to see accurate match scores and let team leaders evaluate your applications.</p>
                 </div>
                 <a href="edit_profile.php" class="profile-alert-btn">Set up your profile now &rarr;</a>
             </div>
@@ -235,19 +270,39 @@ $active_count = $stmt3->fetch(PDO::FETCH_ASSOC)['total'];
             <!-- Quick Action Cards -->
             <div class="action-cards">
 
-                <a href="profile.php" class="action-card" id="action-profile">
-                    <div class="action-card-icon">
+                <a href="browse_teams.php" class="action-card" id="action-explore">
+                    <div class="action-card-icon action-icon-primary">
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                            <circle cx="12" cy="7" r="4"/>
+                            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                         </svg>
                     </div>
                     <div class="action-card-body">
-                        <h3 class="action-card-title">My Profile</h3>
-                        <p class="action-card-desc">View and update your academic information and research preferences.</p>
+                        <h3 class="action-card-title">Explore Research Teams</h3>
+                        <p class="action-card-desc">Browse open opportunities and see your personalized compatibility match score.</p>
                     </div>
                     <div class="action-card-right">
-                        <span class="action-card-cta">Go to Profile</span>
+                        <span class="action-card-cta">Explore</span>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="9 18 15 12 9 6"/>
+                        </svg>
+                    </div>
+                </a>
+
+                <a href="my_applications.php" class="action-card" id="action-applications">
+                    <div class="action-card-icon action-icon-indigo">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                        </svg>
+                    </div>
+                    <div class="action-card-body">
+                        <h3 class="action-card-title">My Applications</h3>
+                        <p class="action-card-desc">You have submitted <?php echo (int)$my_apps_count; ?> application(s). Check leader updates.</p>
+                    </div>
+                    <div class="action-card-right">
+                        <span class="action-card-cta">View Status</span>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="9 18 15 12 9 6"/>
                         </svg>
@@ -286,7 +341,7 @@ $active_count = $stmt3->fetch(PDO::FETCH_ASSOC)['total'];
                     </div>
                     <div class="action-card-body">
                         <h3 class="action-card-title">My Research Posts</h3>
-                        <p class="action-card-desc">You have <?php echo (int)$post_count; ?> post(s). View, edit, or close them.</p>
+                        <p class="action-card-desc">Manage your <?php echo (int)$post_count; ?> post(s) and review <?php echo (int)$pending_requests; ?> pending join request(s).</p>
                     </div>
                     <div class="action-card-right">
                         <span class="action-card-cta">My Posts</span>
@@ -299,8 +354,8 @@ $active_count = $stmt3->fetch(PDO::FETCH_ASSOC)['total'];
             </div><!-- end action-cards -->
 
             <footer class="page-footer">
-                <span>&copy; 2024 Grad Collab. All rights reserved.</span>
-                <span>Built for students, by students. &#x1F49C;</span>
+                <span>&copy; <?php echo date('Y'); ?> Grad Collab. All rights reserved.</span>
+                <span>Research Together, Grow Together &#x1F49C;</span>
             </footer>
 
         </main>

@@ -68,9 +68,15 @@ if ($filter_status === 'open') {
 }
 // If $filter_status === 'all', no status restriction applied
 
-// 2. Keyword Search (searches title, abstract, tags, and required_skills)
+// 2. Keyword Search (searches title, abstract, domain, tags, required_skills, supervisor, and leader name)
 if ($keyword !== '') {
-    $where_clauses[] = "(tp.title LIKE :kw OR tp.abstract LIKE :kw OR tp.tags LIKE :kw OR tp.required_skills LIKE :kw)";
+    $where_clauses[] = "(tp.title LIKE :kw 
+                      OR tp.abstract LIKE :kw 
+                      OR tp.domain LIKE :kw 
+                      OR tp.tags LIKE :kw 
+                      OR tp.required_skills LIKE :kw 
+                      OR tp.preferred_supervisor LIKE :kw 
+                      OR u.name LIKE :kw)";
     $params[':kw'] = '%' . $keyword . '%';
 }
 
@@ -268,7 +274,7 @@ $current_url = htmlspecialchars($_SERVER['REQUEST_URI']);
                         <label for="keyword" style="font-weight: 600; margin-bottom: 8px; display: block;">Keyword Search</label>
                         <div style="display: flex; gap: 10px;">
                             <input type="text" id="keyword" name="keyword" class="form-control"
-                                   placeholder="Search by title, abstract, tags, or required skills..."
+                                   placeholder="Search by title, abstract, domain, tags, skills, supervisor, or leader..."
                                    value="<?php echo htmlspecialchars($keyword); ?>">
                             <button type="submit" class="btn btn-primary" style="flex-shrink: 0; padding: 0 24px;">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">

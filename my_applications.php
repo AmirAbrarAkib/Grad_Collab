@@ -1,7 +1,6 @@
 <?php
 // ============================================================
-// profile.php - Student Profile Page (Feature 2)
-// Displays the logged-in student's profile and research preferences
+// my_applications.php - My Submitted Join Requests
 // ============================================================
 
 session_start();
@@ -17,27 +16,32 @@ if ($_SESSION['role'] !== 'student') {
 }
 
 require_once 'db.php';
+require_once 'match_helper.php';
 
-// Get the logged-in student's user_id from the session
-// We NEVER trust an ID from the URL — always use the session
-$user_id = $_SESSION['user_id'];
+// Ensure table exists
+ensure_applications_table($pdo);
 
-// Fetch basic user info from the users table
-$stmt = $pdo->prepare("SELECT user_id, name, email, role, created_at FROM users WHERE user_id = :uid");
-$stmt->execute([':uid' => $user_id]);
-$user = $stmt->fetch(PDO::FETCH_ASSOC);
+$user_id = (int)$_SESSION['user_id'];
 
-// Fetch the student's research profile if it exists
-$stmt2 = $pdo->prepare("SELECT * FROM student_profiles WHERE user_id = :uid");
-$stmt2->execute([':uid' => $user_id]);
-$profile = $stmt2->fetch(PDO::FETCH_ASSOC);
+// Fetch all applications submitted by this student
+$stmt = $pdo->prepare("
+    SELECT ta.*, tp.title AS post_title, tp.domain AS post_domain, tp.status AS post_status, tp.deadline,
+           u.name AS leader_name, u.email AS leader_email
+    FROM team_applications ta
+    JOIN team_posts tp ON tp.team_id = ta.team_id
+    JOIN users u ON u.user_id = tp.leader_id
+    WHERE ta.student_id = :sid
+    ORDER BY ta.applied_at DESC
+");
+$stmt->execute([':sid' => $user_id]);
+$applications = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Profile - Grad Collab</title>
+    <title>My Applications - Grad Collab</title>
     <link rel="stylesheet" href="style.css?v=<?php echo time(); ?>">
 </head>
 <body class="app-layout">
@@ -65,11 +69,11 @@ $profile = $stmt2->fetch(PDO::FETCH_ASSOC);
                 <span class="sidebar-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
                 Explore Teams
             </a>
-            <a href="my_applications.php" class="sidebar-link" id="nav-applications">
+            <a href="my_applications.php" class="sidebar-link active" id="nav-applications">
                 <span class="sidebar-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span>
                 My Applications
             </a>
-            <a href="profile.php" class="sidebar-link active" id="nav-profile">
+            <a href="profile.php" class="sidebar-link" id="nav-profile">
                 <span class="sidebar-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
                 My Profile
             </a>
@@ -101,101 +105,66 @@ $profile = $stmt2->fetch(PDO::FETCH_ASSOC);
         </header>
 
     <div class="page-container">
-        
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
-            <h2 class="page-title" style="margin:0;">My Profile</h2>
-            <a href="edit_profile.php" class="btn btn-primary">Edit Profile</a>
-        </div>
 
-        <!-- Account Information -->
-        <div class="card">
-            <h3 class="section-title">Account Information</h3>
-            <div class="info-list">
-                <div class="info-row">
-                    <div class="info-label">Full Name</div>
-                    <div class="info-value"><?php echo htmlspecialchars($user['name']); ?></div>
-                </div>
-                <div class="info-row">
-                    <div class="info-label">Email Address</div>
-                    <div class="info-value"><?php echo htmlspecialchars($user['email']); ?></div>
-                </div>
-                <div class="info-row">
-                    <div class="info-label">Role</div>
-                    <div class="info-value"><?php echo ucfirst(htmlspecialchars($user['role'])); ?></div>
-                </div>
-                <div class="info-row">
-                    <div class="info-label">Member Since</div>
-                    <div class="info-value"><?php echo date('d M Y', strtotime($user['created_at'])); ?></div>
-                </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
+            <div>
+                <h2 class="page-title" style="margin:0;">My Applications</h2>
+                <p style="color:#6B7280; margin-top:4px; font-size:14px;">Track the status of your join requests to research and thesis teams.</p>
             </div>
+            <a href="browse_teams.php" class="btn btn-primary">Find More Teams</a>
         </div>
 
-        <!-- Research Profile -->
-        <div class="card">
-            <h3 class="section-title">Academic &amp; Research Profile</h3>
+        <?php if (empty($applications)): ?>
+            <div class="empty-state">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:14px;">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                </svg>
+                <h3>No Applications Submitted Yet</h3>
+                <p>You have not applied to any research opportunities yet. Explore open teams and find matching projects!</p>
+                <a href="browse_teams.php" class="btn btn-primary" style="margin-top:8px;">Explore Research Teams</a>
+            </div>
+        <?php else: ?>
+            <div class="posts-grid">
+                <?php foreach ($applications as $app): ?>
+                <div class="post-card">
+                    <div class="post-card-header">
+                        <div>
+                            <span class="post-card-domain"><?php echo htmlspecialchars($app['post_domain']); ?></span>
+                            <h3 class="post-card-title" style="margin-top:4px;">
+                                <a href="view_team.php?id=<?php echo (int)$app['team_id']; ?>" style="color:inherit; text-decoration:none;">
+                                    <?php echo htmlspecialchars($app['post_title']); ?>
+                                </a>
+                            </h3>
+                        </div>
+                        <span class="badge badge-<?php echo $app['status']; ?>" style="font-size:13px; padding:5px 14px;">
+                            <?php echo ucfirst($app['status']); ?>
+                        </span>
+                    </div>
 
-            <?php if ($profile): ?>
-                <div class="info-list">
-                    <div class="info-row">
-                        <div class="info-label">CGPA</div>
-                        <div class="info-value"><?php echo htmlspecialchars($profile['cgpa']); ?> / 4.00</div>
+                    <!-- Statement sent -->
+                    <div style="background:#F9FAFB; border:1px solid #E5E7EB; border-radius:8px; padding:12px; margin-bottom:14px;">
+                        <strong style="font-size:12px; color:#6B7280; text-transform:uppercase; display:block; margin-bottom:4px;">Your Statement:</strong>
+                        <p style="margin:0; font-size:13px; color:#374151; line-height:1.5;">
+                            <?php echo nl2br(htmlspecialchars($app['message'])); ?>
+                        </p>
                     </div>
-                    <div class="info-row">
-                        <div class="info-label">Current Semester</div>
-                        <div class="info-value"><?php echo htmlspecialchars($profile['semester']); ?></div>
+
+                    <div class="post-card-meta">
+                        <span><strong>Leader:</strong> <?php echo htmlspecialchars($app['leader_name']); ?></span>
+                        <span><strong>Leader Email:</strong> <a href="mailto:<?php echo htmlspecialchars($app['leader_email']); ?>"><?php echo htmlspecialchars($app['leader_email']); ?></a></span>
+                        <span><strong>Applied:</strong> <?php echo date('d M Y, h:i A', strtotime($app['applied_at'])); ?></span>
+                        <span><strong>Match Score:</strong> <?php echo (int)$app['match_score']; ?>%</span>
                     </div>
-                    <div class="info-row">
-                        <div class="info-label">Availability</div>
-                        <div class="info-value"><?php echo htmlspecialchars($profile['availability']); ?></div>
-                    </div>
-                    <div class="info-row">
-                        <div class="info-label">Preferred Research Domains</div>
-                        <div class="info-value">
-                            <?php
-                            if (!empty($profile['preferred_domains'])) {
-                                echo htmlspecialchars($profile['preferred_domains']);
-                            } else {
-                                echo '<span class="text-muted">Not set</span>';
-                            }
-                            ?>
-                        </div>
-                    </div>
-                    <div class="info-row">
-                        <div class="info-label">Skills</div>
-                        <div class="info-value">
-                            <?php
-                            if (!empty($profile['skills'])) {
-                                echo htmlspecialchars($profile['skills']);
-                            } else {
-                                echo '<span class="text-muted">Not set</span>';
-                            }
-                            ?>
-                        </div>
-                    </div>
-                    <div class="info-row">
-                        <div class="info-label">Preferred Supervisor</div>
-                        <div class="info-value">
-                            <?php
-                            if (!empty($profile['preferred_supervisor'])) {
-                                echo htmlspecialchars($profile['preferred_supervisor']);
-                            } else {
-                                echo '<span class="text-muted">Not set</span>';
-                            }
-                            ?>
-                        </div>
-                    </div>
-                    <div class="info-row">
-                        <div class="info-label">Last Updated</div>
-                        <div class="info-value"><?php echo date('d M Y, h:i A', strtotime($profile['updated_at'])); ?></div>
+
+                    <div class="post-card-actions" style="margin-top:14px;">
+                        <a href="view_team.php?id=<?php echo (int)$app['team_id']; ?>" class="btn btn-secondary btn-sm">
+                            View Research Post &amp; Updates &rarr;
+                        </a>
                     </div>
                 </div>
-            <?php else: ?>
-                <div class="empty-state" style="padding: 40px 20px;">
-                    <p style="margin-bottom: 12px;">You have not filled in your research profile yet.</p>
-                    <a href="edit_profile.php" class="btn btn-primary">Set up your profile</a>
-                </div>
-            <?php endif; ?>
-        </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
 
     </div><!-- end page-container -->
     </div><!-- end main-wrapper -->

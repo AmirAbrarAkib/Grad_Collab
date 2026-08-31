@@ -28,19 +28,34 @@ if (!isset($_GET['id']) || !ctype_digit($_GET['id'])) {
 $team_id = (int)$_GET['id'];
 $user_id = $_SESSION['user_id'];
 
-// Fetch the team post along with the leader's name from the users table
+// ---- HANDLE FAVORITE / SHORTLIST ACTION ----
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['fav_action'])) {
+    if ($_POST['fav_action'] === 'favorite') {
+        $favStmt = $pdo->prepare("INSERT IGNORE INTO saved_posts (user_id, team_id) VALUES (:uid, :tid)");
+        $favStmt->execute([':uid' => $user_id, ':tid' => $team_id]);
+    } elseif ($_POST['fav_action'] === 'unfavorite') {
+        $unfavStmt = $pdo->prepare("DELETE FROM saved_posts WHERE user_id = :uid AND team_id = :tid");
+        $unfavStmt->execute([':uid' => $user_id, ':tid' => $team_id]);
+    }
+    header("Location: view_team.php?id=" . $team_id);
+    exit();
+}
+
+// Fetch the team post along with the leader's name and saved state
 $stmt = $pdo->prepare(
-    "SELECT tp.*, u.name AS leader_name, u.email AS leader_email
+    "SELECT tp.*, u.name AS leader_name, u.email AS leader_email,
+            (sp.save_id IS NOT NULL) AS is_saved
      FROM team_posts tp
      JOIN users u ON u.user_id = tp.leader_id
+     LEFT JOIN saved_posts sp ON sp.team_id = tp.team_id AND sp.user_id = :uid
      WHERE tp.team_id = :tid"
 );
-$stmt->execute([':tid' => $team_id]);
+$stmt->execute([':tid' => $team_id, ':uid' => $user_id]);
 $post = $stmt->fetch(PDO::FETCH_ASSOC);
 
 // If the post doesn't exist, redirect back
 if (!$post) {
-    header("Location: my_teams.php");
+    header("Location: browse_teams.php");
     exit();
 }
 
@@ -76,6 +91,10 @@ $is_leader = ($post['leader_id'] == $user_id);
                 <span class="sidebar-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span>
                 Dashboard
             </a>
+            <a href="browse_teams.php" class="sidebar-link" id="nav-browse">
+                <span class="sidebar-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+                Browse Teams
+            </a>
             <a href="profile.php" class="sidebar-link" id="nav-profile">
                 <span class="sidebar-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
                 My Profile
@@ -84,7 +103,7 @@ $is_leader = ($post['leader_id'] == $user_id);
                 <span class="sidebar-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span>
                 Post Research
             </a>
-            <a href="my_teams.php" class="sidebar-link active" id="nav-myposts">
+            <a href="my_teams.php" class="sidebar-link" id="nav-myposts">
                 <span class="sidebar-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="8" height="10" rx="2"/><rect x="14" y="3" width="8" height="10" rx="2"/><path d="M9 17H5a2 2 0 0 0-2 2v3"/><path d="M19 17h-4a2 2 0 0 0-2 2v3"/></svg></span>
                 My Posts
             </a>
@@ -108,30 +127,70 @@ $is_leader = ($post['leader_id'] == $user_id);
         </header>
     <div class="page-container">
 
-        <!-- Back link -->
-        <p style="margin-bottom:16px;">
-            <a href="my_teams.php">&larr; Back to My Posts</a>
+        <!-- Navigation links -->
+        <p style="margin-bottom:16px; display: flex; gap: 16px;">
+            <a href="browse_teams.php">&larr; Back to Browse Opportunities</a>
+            <?php if ($is_leader): ?>
+                <span class="text-muted">|</span>
+                <a href="my_teams.php">My Posts</a>
+            <?php endif; ?>
         </p>
 
-        <!-- Post title and status badge side by side -->
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
-            <h2 style="margin:0;"><?php echo htmlspecialchars($post['title']); ?></h2>
-            <span class="status-badge status-<?php echo $post['status']; ?>" style="font-size:0.95em; padding:5px 14px;">
-                <?php echo ucfirst(htmlspecialchars($post['status'])); ?>
-            </span>
+        <!-- Post title, status badge and favorite button -->
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px; flex-wrap: wrap; gap: 12px;">
+            <div>
+                <h2 style="margin:0 0 6px 0;"><?php echo htmlspecialchars($post['title']); ?></h2>
+                <div class="post-card-domain"><?php echo htmlspecialchars($post['domain']); ?></div>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span class="badge badge-<?php echo $post['status']; ?>" style="font-size:0.95em; padding:6px 14px;">
+                    <?php echo ucfirst(htmlspecialchars($post['status'])); ?>
+                </span>
+
+                <!-- Favorite / Shortlist Button -->
+                <form method="POST" action="view_team.php?id=<?php echo $team_id; ?>" style="display: inline;">
+                    <?php if ($post['is_saved']): ?>
+                        <input type="hidden" name="fav_action" value="unfavorite">
+                        <button type="submit" class="btn btn-sm" style="background: #FEF3C7; border: 1px solid #FCD34D; color: #92400E; gap: 6px;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="#D97706" stroke="#D97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                            </svg>
+                            Shortlisted
+                        </button>
+                    <?php else: ?>
+                        <input type="hidden" name="fav_action" value="favorite">
+                        <button type="submit" class="btn btn-secondary btn-sm" style="gap: 6px;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                            </svg>
+                            Shortlist Post
+                        </button>
+                    <?php endif; ?>
+                </form>
+            </div>
         </div>
 
         <!-- Leader action buttons — only the leader sees these -->
-        <?php if ($is_leader && $post['status'] === 'open'): ?>
-        <div style="margin-bottom:18px;">
-            <a href="edit_team.php?id=<?php echo $team_id; ?>" class="btn-primary">Edit Post</a>
-            &nbsp;
+        <?php if ($is_leader): ?>
+        <div style="display:flex; gap:10px; margin-bottom:20px;">
+            <a href="edit_team.php?id=<?php echo $team_id; ?>" class="btn btn-secondary btn-sm">Edit Post</a>
+            
+            <?php if ($post['status'] === 'open'): ?>
             <form method="POST" action="my_teams.php" style="display:inline;"
-                  onsubmit="return confirm('Close this post?');">
+                  onsubmit="return confirm('Close this post? It will no longer appear as open.');">
                 <input type="hidden" name="action" value="close">
                 <input type="hidden" name="team_id" value="<?php echo $team_id; ?>">
-                <button type="submit" class="btn-danger">Close Post</button>
+                <button type="submit" class="btn btn-danger btn-sm">Close Post</button>
             </form>
+            <?php else: ?>
+            <form method="POST" action="my_teams.php" style="display:inline;"
+                  onsubmit="return confirm('Reopen this post? It will accept applicants again.');">
+                <input type="hidden" name="action" value="reopen">
+                <input type="hidden" name="team_id" value="<?php echo $team_id; ?>">
+                <button type="submit" class="btn btn-primary btn-sm">Reopen Post</button>
+            </form>
+            <?php endif; ?>
         </div>
         <?php endif; ?>
 
@@ -148,7 +207,12 @@ $is_leader = ($post['leader_id'] == $user_id);
                     <td>
                         <?php
                         if (!empty($post['tags'])) {
-                            echo htmlspecialchars($post['tags']);
+                            $tags = array_map('trim', explode(',', $post['tags']));
+                            foreach ($tags as $tag) {
+                                if ($tag !== '') {
+                                    echo '<span class="badge badge-tag" style="margin-right:6px;">' . htmlspecialchars($tag) . '</span>';
+                                }
+                            }
                         } else {
                             echo '<span class="text-muted">None</span>';
                         }
@@ -165,13 +229,24 @@ $is_leader = ($post['leader_id'] == $user_id);
             </div>
         </div>
 
-        <!-- Team Requirements -->
+        <!-- Team Requirements & Capacity -->
         <div class="info-card">
-            <h3>Team Requirements</h3>
+            <h3>Team Requirements &amp; Capacity</h3>
             <table class="info-table">
                 <tr>
                     <th>Teammates Needed</th>
                     <td><?php echo (int)$post['required_teammates']; ?></td>
+                </tr>
+                <tr>
+                    <th>Remaining Available Seats</th>
+                    <td>
+                        <strong style="color: <?php echo ($post['remaining_seats'] > 0) ? '#059669' : '#DC2626'; ?>;">
+                            <?php echo (int)($post['remaining_seats'] ?? $post['required_teammates']); ?>
+                        </strong>
+                        <?php if (($post['remaining_seats'] ?? $post['required_teammates']) == 0): ?>
+                            <span class="badge badge-closed" style="margin-left:8px;">Team Full</span>
+                        <?php endif; ?>
+                    </td>
                 </tr>
                 <tr>
                     <th>Required Skills</th>

@@ -65,16 +65,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $minimum_cgpa = number_format((float)$minimum_cgpa, 2, '.', '');
 
         // Insert the new team post; leader_id comes from the session
-        // Status defaults to 'open' as specified in the requirements
+        // Status defaults to 'open' and remaining_seats starts equal to required_teammates
         $stmt = $pdo->prepare(
             "INSERT INTO team_posts
                  (leader_id, title, abstract, domain, tags,
-                  required_teammates, deadline, minimum_cgpa,
+                  required_teammates, remaining_seats, deadline, minimum_cgpa,
                   eligible_semesters, required_skills, preferred_supervisor,
                   status, created_at)
              VALUES
                  (:leader_id, :title, :abstract, :domain, :tags,
-                  :required_teammates, :deadline, :minimum_cgpa,
+                  :required_teammates, :remaining_seats, :deadline, :minimum_cgpa,
                   :eligible_semesters, :required_skills, :preferred_supervisor,
                   'open', NOW())"
         );
@@ -86,6 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':domain'              => $domain,
             ':tags'                => $tags,
             ':required_teammates'  => (int)$required_teammates,
+            ':remaining_seats'     => (int)$required_teammates,
             ':deadline'            => $deadline,
             ':minimum_cgpa'        => $minimum_cgpa,
             ':eligible_semesters'  => $eligible_semesters,
@@ -128,6 +129,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <a href="student_dashboard.php" class="sidebar-link" id="nav-dashboard">
                 <span class="sidebar-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span>
                 Dashboard
+            </a>
+            <a href="browse_teams.php" class="sidebar-link" id="nav-browse">
+                <span class="sidebar-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+                Browse Teams
             </a>
             <a href="profile.php" class="sidebar-link" id="nav-profile">
                 <span class="sidebar-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>

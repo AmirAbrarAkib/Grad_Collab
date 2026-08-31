@@ -32,6 +32,11 @@ $post_count = $stmt2->fetch(PDO::FETCH_ASSOC)['total'];
 $stmt3 = $pdo->prepare("SELECT COUNT(*) AS total FROM team_posts WHERE leader_id = :uid AND status = 'open'");
 $stmt3->execute([':uid' => $user_id]);
 $active_count = $stmt3->fetch(PDO::FETCH_ASSOC)['total'];
+
+// Count student's shortlisted / saved posts
+$stmt4 = $pdo->prepare("SELECT COUNT(*) AS total FROM saved_posts WHERE user_id = :uid");
+$stmt4->execute([':uid' => $user_id]);
+$saved_count = $stmt4->fetch(PDO::FETCH_ASSOC)['total'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -69,6 +74,15 @@ $active_count = $stmt3->fetch(PDO::FETCH_ASSOC)['total'];
                     </svg>
                 </span>
                 Dashboard
+            </a>
+
+            <a href="browse_teams.php" class="sidebar-link" id="nav-browse">
+                <span class="sidebar-link-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                </span>
+                Browse Teams
             </a>
 
             <a href="profile.php" class="sidebar-link" id="nav-profile">
@@ -202,14 +216,13 @@ $active_count = $stmt3->fetch(PDO::FETCH_ASSOC)['total'];
                 <div class="stat-card">
                     <div class="stat-card-icon stat-icon-amber">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="10"/>
-                            <polyline points="12 6 12 12 16 14"/>
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
                         </svg>
                     </div>
                     <div class="stat-card-body">
-                        <div class="stat-card-value"><?php echo max(0, (int)$post_count - (int)$active_count); ?></div>
-                        <div class="stat-card-label">Drafts</div>
-                        <div class="stat-card-sub">Saved as drafts</div>
+                        <div class="stat-card-value"><?php echo (int)$saved_count; ?></div>
+                        <div class="stat-card-label">Shortlisted Posts</div>
+                        <div class="stat-card-sub"><a href="browse_teams.php?saved_only=1" style="color: var(--primary); text-decoration: none;">View shortlisted &rarr;</a></div>
                     </div>
                 </div>
             </div>
@@ -234,6 +247,24 @@ $active_count = $stmt3->fetch(PDO::FETCH_ASSOC)['total'];
 
             <!-- Quick Action Cards -->
             <div class="action-cards">
+
+                <a href="browse_teams.php" class="action-card" id="action-browse">
+                    <div class="action-card-icon" style="background: var(--primary-bg); color: var(--primary);">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        </svg>
+                    </div>
+                    <div class="action-card-body">
+                        <h3 class="action-card-title">Browse Research Opportunities</h3>
+                        <p class="action-card-desc">Search and filter active thesis &amp; research posts across domains and supervisors.</p>
+                    </div>
+                    <div class="action-card-right">
+                        <span class="action-card-cta">Browse Teams</span>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="9 18 15 12 9 6"/>
+                        </svg>
+                    </div>
+                </a>
 
                 <a href="profile.php" class="action-card" id="action-profile">
                     <div class="action-card-icon">

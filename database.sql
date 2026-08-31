@@ -101,3 +101,38 @@ CREATE TABLE IF NOT EXISTS saved_posts (
 );
 
 
+
+
+-- ============================================================
+-- Feature: Supervisor Resource Sharing & Task Management
+-- Allows supervisors to attach materials, papers, datasets, and tasks to teams.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS supervisor_resources (
+    resource_id   INT PRIMARY KEY AUTO_INCREMENT,
+    supervisor_id INT NOT NULL,                              -- References users.user_id (supervisor)
+    team_id       INT NOT NULL,                              -- References team_posts.team_id
+    title         VARCHAR(200) NOT NULL,
+    description   TEXT DEFAULT NULL,
+    resource_type ENUM('paper', 'video', 'dataset', 'task') NOT NULL,
+    link_url      VARCHAR(255) DEFAULT NULL,
+    is_required   TINYINT(1) DEFAULT 0,
+    due_date      DATE DEFAULT NULL,
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (supervisor_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (team_id) REFERENCES team_posts(team_id) ON DELETE CASCADE
+);
+
+-- ============================================================
+-- Feature: Student Resource Progress Tracker
+-- Tracks reading/completion status per student per resource.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS resource_progress (
+    progress_id INT PRIMARY KEY AUTO_INCREMENT,
+    resource_id INT NOT NULL,                                -- References supervisor_resources.resource_id
+    student_id  INT NOT NULL,                                -- References users.user_id (student)
+    status      ENUM('not_started', 'in_progress', 'completed') DEFAULT 'not_started',
+    updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY (resource_id, student_id),                    -- One progress entry per student per resource
+    FOREIGN KEY (resource_id) REFERENCES supervisor_resources(resource_id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
